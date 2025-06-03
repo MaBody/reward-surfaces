@@ -1,0 +1,28 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+plotly = "*"
+pyyaml = "*"
+opencv-python = "*"
+atari-py = "*"
+stable-baselines3 = "*"
+sb3-contrib = "*"
+torch = "*"
+tqdm = "*"
+seaborn = "*"
+h5py = "*"
+pathlib = "*"
+gymnasium = "*"
+numpy = "*"
+pandas = "*"
+ipykernel = "*"
+scipy = "*"
+nbformat = "*"
+
+[dev-packages]
+
+[requires]
+python_version = ">=3.12"
