@@ -5,7 +5,8 @@ import glob
 import yaml
 import importlib
 
-import gym
+import gymnasium as gym
+
 try:
     import mpi4py
 except ImportError:
@@ -18,58 +19,63 @@ from stable_baselines.sac.policies import FeedForwardPolicy as SACPolicy
 from stable_baselines.bench import Monitor
 from stable_baselines import logger
 from stable_baselines import PPO2, A2C, ACER, ACKTR, DQN, HER, SAC, TD3
+
 # DDPG and TRPO require MPI to be installed
 if mpi4py is None:
     DDPG, TRPO = None, None
 else:
     from stable_baselines import DDPG, TRPO
 
-from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize, \
-    VecFrameStack, SubprocVecEnv
+from stable_baselines.common.vec_env import (
+    DummyVecEnv,
+    VecNormalize,
+    VecFrameStack,
+    SubprocVecEnv,
+)
 from stable_baselines.common.cmd_util import make_atari_env
 from stable_baselines.common import set_global_seeds
 
 ALGOS = {
-    'a2c': A2C,
-    'acer': ACER,
-    'acktr': ACKTR,
-    'dqn': DQN,
-    'ddpg': DDPG,
-    'her': HER,
-    'sac': SAC,
-    'ppo2': PPO2,
-    'trpo': TRPO,
-    'td3': TD3
+    "a2c": A2C,
+    "acer": ACER,
+    "acktr": ACKTR,
+    "dqn": DQN,
+    "ddpg": DDPG,
+    "her": HER,
+    "sac": SAC,
+    "ppo2": PPO2,
+    "trpo": TRPO,
+    "td3": TD3,
 }
 
 
 # ================== Custom Policies =================
 
+
 class CustomDQNPolicy(FeedForwardPolicy):
     def __init__(self, *args, **kwargs):
-        super(CustomDQNPolicy, self).__init__(*args, **kwargs,
-                                              layers=[64],
-                                              layer_norm=True,
-                                              feature_extraction="mlp")
+        super(CustomDQNPolicy, self).__init__(
+            *args, **kwargs, layers=[64], layer_norm=True, feature_extraction="mlp"
+        )
 
 
 class CustomMlpPolicy(BasePolicy):
     def __init__(self, *args, **kwargs):
-        super(CustomMlpPolicy, self).__init__(*args, **kwargs,
-                                              layers=[16],
-                                              feature_extraction="mlp")
+        super(CustomMlpPolicy, self).__init__(
+            *args, **kwargs, layers=[16], feature_extraction="mlp"
+        )
 
 
 class CustomSACPolicy(SACPolicy):
     def __init__(self, *args, **kwargs):
-        super(CustomSACPolicy, self).__init__(*args, **kwargs,
-                                              layers=[256, 256],
-                                              feature_extraction="mlp")
+        super(CustomSACPolicy, self).__init__(
+            *args, **kwargs, layers=[256, 256], feature_extraction="mlp"
+        )
 
 
-register_policy('CustomSACPolicy', CustomSACPolicy)
-register_policy('CustomDQNPolicy', CustomDQNPolicy)
-register_policy('CustomMlpPolicy', CustomMlpPolicy)
+register_policy("CustomSACPolicy", CustomSACPolicy)
+register_policy("CustomDQNPolicy", CustomDQNPolicy)
+register_policy("CustomMlpPolicy", CustomMlpPolicy)
 
 
 def flatten_dict_observations(env):
@@ -99,13 +105,13 @@ def get_wrapper_class(hyperparams):
     """
 
     def get_module_name(wrapper_name):
-        return '.'.join(wrapper_name.split('.')[:-1])
+        return ".".join(wrapper_name.split(".")[:-1])
 
     def get_class_name(wrapper_name):
-        return wrapper_name.split('.')[-1]
+        return wrapper_name.split(".")[-1]
 
-    if 'env_wrapper' in hyperparams.keys():
-        wrapper_name = hyperparams.get('env_wrapper')
+    if "env_wrapper" in hyperparams.keys():
+        wrapper_name = hyperparams.get("env_wrapper")
 
         if wrapper_name is None:
             return None
@@ -140,6 +146,7 @@ def get_wrapper_class(hyperparams):
             for wrapper_class, kwargs in zip(wrapper_classes, wrapper_kwargs):
                 env = wrapper_class(env, **kwargs)
             return env
+
         return wrap_env
     else:
         return None
@@ -182,9 +189,17 @@ def make_env(env_id, rank=0, seed=0, log_dir=None, wrapper_class=None, env_kwarg
     return _init
 
 
-def create_test_env(env_id, n_envs=1, is_atari=False,
-                    stats_path=None, seed=0,
-                    log_dir='', should_render=True, hyperparams=None, env_kwargs=None):
+def create_test_env(
+    env_id,
+    n_envs=1,
+    is_atari=False,
+    stats_path=None,
+    seed=0,
+    log_dir="",
+    should_render=True,
+    hyperparams=None,
+    env_kwargs=None,
+):
     """
     Create environment for testing a trained agent
 
@@ -203,7 +218,7 @@ def create_test_env(env_id, n_envs=1, is_atari=False,
     """
     # HACK to save logs
     if log_dir is not None:
-        os.environ["OPENAI_LOG_FORMAT"] = 'csv'
+        os.environ["OPENAI_LOG_FORMAT"] = "csv"
         os.environ["OPENAI_LOGDIR"] = os.path.abspath(log_dir)
         os.makedirs(log_dir, exist_ok=True)
         logger.configure()
@@ -216,8 +231,8 @@ def create_test_env(env_id, n_envs=1, is_atari=False,
 
     # Create the environment and wrap it if necessary
     env_wrapper = get_wrapper_class(hyperparams)
-    if 'env_wrapper' in hyperparams.keys():
-        del hyperparams['env_wrapper']
+    if "env_wrapper" in hyperparams.keys():
+        del hyperparams["env_wrapper"]
 
     if is_atari:
         print("Using Atari wrapper")
@@ -226,24 +241,60 @@ def create_test_env(env_id, n_envs=1, is_atari=False,
         env = VecFrameStack(env, n_stack=4)
     elif n_envs > 1:
         # start_method = 'spawn' for thread safe
-        env = SubprocVecEnv([make_env(env_id, i, seed, log_dir, wrapper_class=env_wrapper, env_kwargs=env_kwargs) for i in range(n_envs)])
+        env = SubprocVecEnv(
+            [
+                make_env(
+                    env_id,
+                    i,
+                    seed,
+                    log_dir,
+                    wrapper_class=env_wrapper,
+                    env_kwargs=env_kwargs,
+                )
+                for i in range(n_envs)
+            ]
+        )
     # Pybullet envs does not follow gym.render() interface
     elif "Bullet" in env_id:
         # HACK: force SubprocVecEnv for Bullet env
-        env = SubprocVecEnv([make_env(env_id, 0, seed, log_dir, wrapper_class=env_wrapper, env_kwargs=env_kwargs)])
+        env = SubprocVecEnv(
+            [
+                make_env(
+                    env_id,
+                    0,
+                    seed,
+                    log_dir,
+                    wrapper_class=env_wrapper,
+                    env_kwargs=env_kwargs,
+                )
+            ]
+        )
     else:
-        env = DummyVecEnv([make_env(env_id, 0, seed, log_dir, wrapper_class=env_wrapper, env_kwargs=env_kwargs)])
+        env = DummyVecEnv(
+            [
+                make_env(
+                    env_id,
+                    0,
+                    seed,
+                    log_dir,
+                    wrapper_class=env_wrapper,
+                    env_kwargs=env_kwargs,
+                )
+            ]
+        )
 
     # Load saved stats for normalizing input and rewards
     # And optionally stack frames
     if stats_path is not None:
-        if hyperparams['normalize']:
+        if hyperparams["normalize"]:
             print("Loading running average")
-            print("with params: {}".format(hyperparams['normalize_kwargs']))
-            env = VecNormalize(env, training=False, **hyperparams['normalize_kwargs'])
+            print("with params: {}".format(hyperparams["normalize_kwargs"]))
+            env = VecNormalize(env, training=False, **hyperparams["normalize_kwargs"])
 
-            if os.path.exists(os.path.join(stats_path, 'vecnormalize.pkl')):
-                env = VecNormalize.load(os.path.join(stats_path, 'vecnormalize.pkl'), env)
+            if os.path.exists(os.path.join(stats_path, "vecnormalize.pkl")):
+                env = VecNormalize.load(
+                    os.path.join(stats_path, "vecnormalize.pkl"), env
+                )
                 # Deactivate training and reward normalization
                 env.training = False
                 env.norm_reward = False
@@ -251,7 +302,7 @@ def create_test_env(env_id, n_envs=1, is_atari=False,
                 # Legacy:
                 env.load_running_average(stats_path)
 
-        n_stack = hyperparams.get('frame_stack', 0)
+        n_stack = hyperparams.get("frame_stack", 0)
         if n_stack > 0:
             print("Stacking {} frames".format(n_stack))
             env = VecFrameStack(env, n_stack)
@@ -287,11 +338,11 @@ def get_trained_models(log_folder):
     algos = os.listdir(log_folder)
     trained_models = {}
     for algo in algos:
-        for ext in ['zip', 'pkl']:
-            for env_id in glob.glob('{}/{}/*.{}'.format(log_folder, algo, ext)):
+        for ext in ["zip", "pkl"]:
+            for env_id in glob.glob("{}/{}/*.{}".format(log_folder, algo, ext)):
                 # Retrieve env name
-                env_id = env_id.split('/')[-1].split('.{}'.format(ext))[0]
-                trained_models['{}-{}'.format(algo, env_id)] = (algo, env_id)
+                env_id = env_id.split("/")[-1].split(".{}".format(ext))[0]
+                trained_models["{}-{}".format(algo, env_id)] = (algo, env_id)
     return trained_models
 
 
@@ -308,7 +359,11 @@ def get_latest_run_id(log_path, env_id):
     for path in glob.glob(log_path + "/{}_[0-9]*".format(env_id)):
         file_name = path.split("/")[-1]
         ext = file_name.split("_")[-1]
-        if env_id == "_".join(file_name.split("_")[:-1]) and ext.isdigit() and int(ext) > max_run_id:
+        if (
+            env_id == "_".join(file_name.split("_")[:-1])
+            and ext.isdigit()
+            and int(ext) > max_run_id
+        ):
             max_run_id = int(ext)
     return max_run_id
 
@@ -324,25 +379,30 @@ def get_saved_hyperparams(stats_path, norm_reward=False, test_mode=False):
     if not os.path.isdir(stats_path):
         stats_path = None
     else:
-        config_file = os.path.join(stats_path, 'config.yml')
+        config_file = os.path.join(stats_path, "config.yml")
         if os.path.isfile(config_file):
             # Load saved hyperparameters
-            with open(os.path.join(stats_path, 'config.yml'), 'r') as f:
-                hyperparams = yaml.load(f, Loader=yaml.UnsafeLoader)  # pytype: disable=module-attr
-            hyperparams['normalize'] = hyperparams.get('normalize', False)
+            with open(os.path.join(stats_path, "config.yml"), "r") as f:
+                hyperparams = yaml.load(
+                    f, Loader=yaml.UnsafeLoader
+                )  # pytype: disable=module-attr
+            hyperparams["normalize"] = hyperparams.get("normalize", False)
         else:
-            obs_rms_path = os.path.join(stats_path, 'obs_rms.pkl')
-            hyperparams['normalize'] = os.path.isfile(obs_rms_path)
+            obs_rms_path = os.path.join(stats_path, "obs_rms.pkl")
+            hyperparams["normalize"] = os.path.isfile(obs_rms_path)
 
         # Load normalization params
-        if hyperparams['normalize']:
-            if isinstance(hyperparams['normalize'], str):
-                normalize_kwargs = eval(hyperparams['normalize'])
+        if hyperparams["normalize"]:
+            if isinstance(hyperparams["normalize"], str):
+                normalize_kwargs = eval(hyperparams["normalize"])
                 if test_mode:
-                    normalize_kwargs['norm_reward'] = norm_reward
+                    normalize_kwargs["norm_reward"] = norm_reward
             else:
-                normalize_kwargs = {'norm_obs': hyperparams['normalize'], 'norm_reward': norm_reward}
-            hyperparams['normalize_kwargs'] = normalize_kwargs
+                normalize_kwargs = {
+                    "norm_obs": hyperparams["normalize"],
+                    "norm_reward": norm_reward,
+                }
+            hyperparams["normalize_kwargs"] = normalize_kwargs
     return hyperparams, stats_path
 
 
@@ -355,7 +415,7 @@ def find_saved_model(algo, log_path, env_id, load_best=False):
     :return: (str) Path to the saved model
     """
     model_path, found = None, False
-    for ext in ['pkl', 'zip']:
+    for ext in ["pkl", "zip"]:
         model_path = "{}/{}.{}".format(log_path, env_id, ext)
         found = os.path.isfile(model_path)
         if found:
@@ -366,7 +426,9 @@ def find_saved_model(algo, log_path, env_id, load_best=False):
         found = os.path.isfile(model_path)
 
     if not found:
-        raise ValueError("No model found for {} on {}, path: {}".format(algo, env_id, model_path))
+        raise ValueError(
+            "No model found for {} on {}, path: {}".format(algo, env_id, model_path)
+        )
     return model_path
 
 
@@ -377,6 +439,7 @@ class StoreDict(argparse.Action):
     In: args1:0.0 args2:"dict(a=1)"
     Out: {'args1': 0.0, arg2: dict(a=1)}
     """
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         self._nargs = nargs
         super(StoreDict, self).__init__(option_strings, dest, nargs=nargs, **kwargs)

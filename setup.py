@@ -8,12 +8,16 @@ setuptools.setup(
     version="0.0.1",
     author="Benjamin Black",
     author_email="benblack769@gmail.com",
-    description="Reaserch tool for understanding reinforcement learning optimization",
+    description="Research tool for understanding reinforcement learning optimization",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/benblack769/reward-surfaces",
     keywords=["Machine Learning", "Job Scheduling"],
-    packages=["reward_surfaces"]+["reward_surfaces."+pkg for pkg in setuptools.find_packages("reward_surfaces")],
+    packages=["reward_surfaces"]
+    + ["reward_surfaces." +
+        pkg for pkg in setuptools.find_packages("reward_surfaces")]
+    + ["wrapper"],  # Convenience functions to access the scripts
+    # + [setuptools.find_packages("wrapper")],
     install_requires=[
         "plotly",
         "opencv-python",

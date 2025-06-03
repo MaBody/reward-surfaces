@@ -18,3 +18,6 @@ plot.sh
 *.zip
 *.png
 *.pgf
+
+.vscode
+*.egg-info

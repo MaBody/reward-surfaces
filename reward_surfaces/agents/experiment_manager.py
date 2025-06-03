@@ -5,26 +5,36 @@ from collections import OrderedDict
 from pprint import pprint
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
-import gym
+import gymnasium as gym
 import numpy as np
 import yaml
-#import pybulletgym
+
+# import pybulletgym
 import stable_baselines3
+
 print(stable_baselines3.__file__)
 
 # For using HER with GoalEnv
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
-from stable_baselines3.common.preprocessing import is_image_space, is_image_space_channels_first
+from stable_baselines3.common.noise import (
+    NormalActionNoise,
+    OrnsteinUhlenbeckActionNoise,
+)
+from stable_baselines3.common.preprocessing import (
+    is_image_space,
+    is_image_space_channels_first,
+)
 from stable_baselines3.common.utils import constant_fn
 from stable_baselines3.common.sb2_compat.rmsprop_tf_like import RMSpropTFLike
-from stable_baselines3.common.vec_env import (DummyVecEnv,
-                                              SubprocVecEnv,
-                                              VecEnv,
-                                              VecFrameStack,
-                                              VecNormalize,
-                                              VecTransposeImage)
+from stable_baselines3.common.vec_env import (
+    DummyVecEnv,
+    SubprocVecEnv,
+    VecEnv,
+    VecFrameStack,
+    VecNormalize,
+    VecTransposeImage,
+)
 
 # Register custom envs
 # import utils.import_envs  # noqa: F401 pytype: disable=import-error
@@ -32,6 +42,7 @@ from torch import nn as nn  # noqa: F401
 from stable_baselines3.ddpg import DDPG
 from stable_baselines3.td3 import TD3
 from .SB3.sb3_extended_algos import ExtA2C, ExtPPO, ExtSAC
+
 ALGOS = {
     "a2c": ExtA2C,
     "ppo": ExtPPO,
@@ -41,7 +52,9 @@ ALGOS = {
 }
 
 
-def get_wrapper_class(hyperparams: Dict[str, Any]) -> Optional[Callable[[gym.Env], gym.Env]]:
+def get_wrapper_class(
+    hyperparams: Dict[str, Any],
+) -> Optional[Callable[[gym.Env], gym.Env]]:
     """
     Get one or more Gym environment wrapper class specified as a hyper parameter
     "env_wrapper".
@@ -119,7 +132,11 @@ def get_latest_run_id(log_path: str, env_id: str) -> int:
     for path in glob.glob(os.path.join(log_path, env_id + "_[0-9]*")):
         file_name = os.path.basename(path)
         ext = file_name.split("_")[-1]
-        if env_id == "_".join(file_name.split("_")[:-1]) and ext.isdigit() and int(ext) > max_run_id:
+        if (
+            env_id == "_".join(file_name.split("_")[:-1])
+            and ext.isdigit()
+            and int(ext) > max_run_id
+        ):
             max_run_id = int(ext)
     return max_run_id
 
@@ -168,7 +185,7 @@ class ExperimentManager:
         device: str = "cuda",
         verbose: int = 1,
         vec_env_type: str = "dummy",
-        pretraining: dict = None
+        pretraining: dict = None,
     ):
         super(ExperimentManager, self).__init__()
         self.algo = algo
@@ -183,7 +200,9 @@ class ExperimentManager:
         self.frame_stack = None
         self.seed = seed
 
-        self.vec_env_class = {"dummy": DummyVecEnv, "subproc": SubprocVecEnv}[vec_env_type]
+        self.vec_env_class = {"dummy": DummyVecEnv, "subproc": SubprocVecEnv}[
+            vec_env_type
+        ]
 
         self.vec_env_kwargs = {}
         # self.vec_env_kwargs = {} if vec_env_type == "dummy" else {"start_method": "fork"}
@@ -200,7 +219,9 @@ class ExperimentManager:
             self.best_checkpoint = pretraining["best"]
             self.trained_timesteps = pretraining["trained_steps"]
         self.trained_agent = trained_agent
-        self.continue_training = trained_agent.endswith(".zip") and os.path.isfile(trained_agent)
+        self.continue_training = trained_agent.endswith(".zip") and os.path.isfile(
+            trained_agent
+        )
         self.truncate_last_trajectory = truncate_last_trajectory
 
         self._is_atari = self.is_atari(env_id)
@@ -209,7 +230,9 @@ class ExperimentManager:
 
         # Logging
         self.log_folder = log_folder
-        self.tensorboard_log = None if tensorboard_log == "" else os.path.join(tensorboard_log, env_id)
+        self.tensorboard_log = (
+            None if tensorboard_log == "" else os.path.join(tensorboard_log, env_id)
+        )
         self.verbose = verbose
         self.log_interval = log_interval
         self.save_replay_buffer = save_replay_buffer
@@ -217,7 +240,8 @@ class ExperimentManager:
 
         self.log_path = f"{log_folder}/{self.algo}/"
         self.save_path = os.path.join(
-            self.log_path, f"{self.env_id}_{get_latest_run_id(self.log_path, self.env_id) + 1}{uuid_str}"
+            self.log_path,
+            f"{self.env_id}_{get_latest_run_id(self.log_path, self.env_id) + 1}{uuid_str}",
         )
         self.params_path = f"{self.save_path}/{self.env_id}"
 
@@ -235,7 +259,9 @@ class ExperimentManager:
         # Create env to have access to action space for action noise
         env = self.create_envs(self.n_envs, no_log=False)
 
-        self._hyperparams = self._preprocess_action_noise(hyperparams, saved_hyperparams, env)
+        self._hyperparams = self._preprocess_action_noise(
+            hyperparams, saved_hyperparams, env
+        )
 
         if self.continue_training:
             model = self._load_pretrained_agent(self._hyperparams, env)
@@ -281,16 +307,22 @@ class ExperimentManager:
             elif self._is_atari:
                 hyperparams = hyperparams_dict["atari"]
             else:
-                raise ValueError(f"Hyperparameters not found for {self.algo}-{self.env_id}")
+                raise ValueError(
+                    f"Hyperparameters not found for {self.algo}-{self.env_id}"
+                )
 
         if self.custom_hyperparams is not None:
             # Overwrite hyperparams if needed
             hyperparams.update(self.custom_hyperparams)
         # Sort hyperparams that will be saved
-        saved_hyperparams = OrderedDict([(key, hyperparams[key]) for key in sorted(hyperparams.keys())])
+        saved_hyperparams = OrderedDict(
+            [(key, hyperparams[key]) for key in sorted(hyperparams.keys())]
+        )
 
         if self.verbose > 0:
-            print("Default hyperparameters for environment (ones being tuned will be overridden):")
+            print(
+                "Default hyperparameters for environment (ones being tuned will be overridden):"
+            )
             pprint(saved_hyperparams)
 
         return hyperparams, saved_hyperparams
@@ -361,8 +393,14 @@ class ExperimentManager:
 
         # Pre-process policy/buffer keyword arguments
         # Convert to python object if needed
-        for kwargs_key in {"policy_kwargs", "replay_buffer_class", "replay_buffer_kwargs"}:
-            if kwargs_key in hyperparams.keys() and isinstance(hyperparams[kwargs_key], str):
+        for kwargs_key in {
+            "policy_kwargs",
+            "replay_buffer_class",
+            "replay_buffer_kwargs",
+        }:
+            if kwargs_key in hyperparams.keys() and isinstance(
+                hyperparams[kwargs_key], str
+            ):
                 hyperparams[kwargs_key] = eval(hyperparams[kwargs_key])
 
         # Delete keys so the dict can be pass to the model constructor
@@ -386,7 +424,10 @@ class ExperimentManager:
         return hyperparams, env_wrapper
 
     def _preprocess_action_noise(
-        self, hyperparams: Dict[str, Any], saved_hyperparams: Dict[str, Any], env: VecEnv
+        self,
+        hyperparams: Dict[str, Any],
+        saved_hyperparams: Dict[str, Any],
+        env: VecEnv,
     ) -> Dict[str, Any]:
         # Parse noise string
         # Note: only off-policy algorithms are supported
@@ -422,15 +463,15 @@ class ExperimentManager:
 
     @staticmethod
     def is_atari(env_id: str) -> bool:
-        return "AtariEnv" in gym.envs.registry.env_specs[env_id].entry_point
+        return "AtariEnv" in gym.envs.registry[env_id].entry_point
 
     @staticmethod
     def is_bullet(env_id: str) -> bool:
-        return "pybullet_envs" in gym.envs.registry.env_specs[env_id].entry_point
+        return "pybullet_envs" in gym.envs.registry[env_id].entry_point
 
     @staticmethod
     def is_robotics_env(env_id: str) -> bool:
-        entry_point = gym.envs.registry.env_specs[env_id].entry_point
+        entry_point = gym.envs.registry[env_id].entry_point
         return "gym.envs.robotics" in entry_point or "panda_gym.envs" in entry_point
 
     def _maybe_normalize(self, env: VecEnv, eval_env: bool) -> VecEnv:
@@ -470,7 +511,9 @@ class ExperimentManager:
             env = VecNormalize(env, **local_normalize_kwargs)
         return env
 
-    def create_envs(self, n_envs: int, eval_env: bool = False, no_log: bool = False) -> VecEnv:
+    def create_envs(
+        self, n_envs: int, eval_env: bool = False, no_log: bool = False
+    ) -> VecEnv:
         """
         Create the environment and wrap it if necessary.
         :param n_envs:
@@ -484,7 +527,11 @@ class ExperimentManager:
 
         monitor_kwargs = {}
         # Special case for GoalEnvs: log success rate too
-        if "Neck" in self.env_id or self.is_robotics_env(self.env_id) or "parking-v0" in self.env_id:
+        if (
+            "Neck" in self.env_id
+            or self.is_robotics_env(self.env_id)
+            or "parking-v0" in self.env_id
+        ):
             monitor_kwargs = dict(info_keywords=("is_success",))
 
         # On most env, SubprocVecEnv does not help and is quite memory hungry
@@ -494,7 +541,7 @@ class ExperimentManager:
             n_envs=n_envs,
             seed=self.seed,
             env_kwargs=self.env_kwargs,
-            monitor_dir=None,                       # Avoid useless monitor file spam from plotting
+            monitor_dir=None,  # Avoid useless monitor file spam from plotting
             wrapper_class=self.env_wrapper,
             vec_env_cls=self.vec_env_class,
             vec_env_kwargs=self.vec_env_kwargs,
@@ -514,14 +561,18 @@ class ExperimentManager:
 
         # Wrap if needed to re-order channels
         # (switch from channel last to channel first convention)
-        if is_image_space(env.observation_space) and not is_image_space_channels_first(env.observation_space):
+        if is_image_space(env.observation_space) and not is_image_space_channels_first(
+            env.observation_space
+        ):
             if self.verbose > 0:
                 print("Wrapping into a VecTransposeImage")
             env = VecTransposeImage(env)
 
         return env
 
-    def _load_pretrained_agent(self, hyperparams: Dict[str, Any], env: VecEnv, agent_path: str = "") -> BaseAlgorithm:
+    def _load_pretrained_agent(
+        self, hyperparams: Dict[str, Any], env: VecEnv, agent_path: str = ""
+    ) -> BaseAlgorithm:
         # Override the pretrained agent that will be loaded
         if agent_path == "":
             agent = self.trained_agent
@@ -547,10 +598,14 @@ class ExperimentManager:
             **hyperparams,
         )
 
-        replay_buffer_path = os.path.join(os.path.dirname(self.trained_agent), "replay_buffer.pkl")
+        replay_buffer_path = os.path.join(
+            os.path.dirname(self.trained_agent), "replay_buffer.pkl"
+        )
 
         if os.path.exists(replay_buffer_path):
             print("Loading replay buffer")
             # `truncate_last_traj` will be taken into account only if we use HER replay buffer
-            model.load_replay_buffer(replay_buffer_path, truncate_last_traj=self.truncate_last_trajectory)
+            model.load_replay_buffer(
+                replay_buffer_path, truncate_last_traj=self.truncate_last_trajectory
+            )
         return model

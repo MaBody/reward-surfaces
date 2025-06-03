@@ -1,7 +1,6 @@
 from stable_baselines3.ddpg import DDPG
 from stable_baselines3.td3 import TD3
 from stable_baselines3.her import HerReplayBuffer
-import gym
 from .SB3 import SB3OnPolicyTrainer, SB3OffPolicyTrainer, SB3HerPolicyTrainer
 from .rainbow.rainbow_trainer import RainbowTrainer
 from .SB3.sb3_extended_algos import ExtA2C, ExtPPO, ExtSAC
@@ -47,7 +46,8 @@ def make_agent(agent_name, env_name, save_dir, hyperparams, device="cuda", pretr
         env_fn = make_vec_env_fn(env_name)
         env = env_fn()
         algo = SB3_OFF_ALGOS[hyperparams.pop('ALGO')]
-        model = "MlpPolicy" if len(env.observation_space.shape) != 3 else "CnnPolicy"
+        model = "MlpPolicy" if len(
+            env.observation_space.shape) != 3 else "CnnPolicy"
         alg = algo(model, env, device=device, **hyperparams)
         return SB3OffPolicyTrainer(env_fn, alg)
     elif "SB3_ON" == agent_name:
@@ -69,7 +69,9 @@ def make_agent(agent_name, env_name, save_dir, hyperparams, device="cuda", pretr
         algo = SB3_OFF_ALGOS[hyperparams.pop('ALGO')]
         return SB3HerPolicyTrainer(
             env_fn,
-            HerReplayBuffer("MlpPolicy", env_fn(), model_class=algo, device=device, **hyperparams)
+            HerReplayBuffer("MlpPolicy", env_fn(),
+                            model_class=algo, device=device, **hyperparams)
         )
     else:
-        raise ValueError("bad agent name, must be one of ['rainbow', 'SB3_OFF', 'SB3_ON', 'SB3_HER']")
+        raise ValueError(
+            "bad agent name, must be one of ['rainbow', 'SB3_OFF', 'SB3_ON', 'SB3_HER']")

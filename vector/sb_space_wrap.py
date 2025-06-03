@@ -1,4 +1,5 @@
-import gym
+import gymnasium as gym
+
 
 class SpaceWrap(gym.Env):
     def __init__(self, env):

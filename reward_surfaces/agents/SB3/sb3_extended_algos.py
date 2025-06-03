@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch as th
 from torch.nn import functional as F
-from gym import spaces
+from gymnasium import spaces
 from stable_baselines3.common.buffers import RolloutBuffer, ReplayBuffer
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.type_aliases import TrainFreq, TrainFrequencyUnit
@@ -23,10 +23,10 @@ class DoNothingCallback(BaseCallback):
 
 class HeshCalcOnlineMixin:
     def eval_log_prob(self, obs, act):
-        '''
+        """
         returns action, logprob
         logprob should be differentialble to allow for backprop
-        '''
+        """
         act = torch.squeeze(act, dim=-1)
         val, log_prob, entropy = self.policy.evaluate_actions(obs, act)
         return log_prob
@@ -36,7 +36,9 @@ class HeshCalcOnlineMixin:
         tot_loss = 0
         tot_size = 0
         tot_grad = [torch.zeros_like(p) for p in self.parameters()]
-        for rollout_data in self.generate_samples(batch_size=max_batch_size, max_samples=num_samples):
+        for rollout_data in self.generate_samples(
+            batch_size=max_batch_size, max_samples=num_samples
+        ):
             # batch_size = min(num_samples-start, max_batch_size)
             batch_loss, batch_grad = self.calulate_grad_from_buffer(rollout_data)
             tot_loss += batch_loss.item()
@@ -50,18 +52,20 @@ class HeshCalcOnlineMixin:
         return tot_loss, tot_grad
 
     def calculate_hesh_vec_prod(self, vec, num_samples):
-        '''
+        """
         stores hessian vector dot product in params.grad
-        '''
+        """
         self.policy.zero_grad()
         max_batch_size = 2048
         # start = 0
-        for rollout_data in self.generate_samples(batch_size=max_batch_size, max_samples=num_samples):
+        for rollout_data in self.generate_samples(
+            batch_size=max_batch_size, max_samples=num_samples
+        ):
             # batch_size = min(num_samples-start, max_batch_size)
             _, grad = self.calulate_grad_from_buffer(rollout_data)
             loss = 0
             for g, p in zip(grad, vec):
-                loss += (g*p).sum()
+                loss += (g * p).sum()
             # accumulates grad inside sb3_algo.parameters().grad
             loss.backward()
 
@@ -69,10 +73,10 @@ class HeshCalcOnlineMixin:
         return self.rollout_buffer.get(batch_size=batch_size)
 
     def setup_buffer(self, num_samples):
-        rollout_steps = num_samples//self.n_envs
+        rollout_steps = num_samples // self.n_envs
         self._old_buffer = self.rollout_buffer
         self.rollout_buffer = RolloutBuffer(
-            (num_samples+self.n_envs-1)//self.n_envs,
+            (num_samples + self.n_envs - 1) // self.n_envs,
             self.observation_space,
             self.action_space,
             self.device,
@@ -82,7 +86,9 @@ class HeshCalcOnlineMixin:
         )
         self.env.reset()
         cb = DoNothingCallback(self)
-        self.collect_rollouts(self.env, cb, self.rollout_buffer, n_rollout_steps=rollout_steps)
+        self.collect_rollouts(
+            self.env, cb, self.rollout_buffer, n_rollout_steps=rollout_steps
+        )
         # evaluation_data = list(zip(self.rollout_buffer.rewards, self.rollout_buffer.dones, self.rollout_buffer.values))
 
     def cleanup_buffer(self):
@@ -91,17 +97,21 @@ class HeshCalcOnlineMixin:
 
 class HeshCalcOfflineMixin(HeshCalcOnlineMixin):
     def eval_log_prob(self, obs, act):
-        raise NotImplmenetedError("eval_log_prob not implemented for all sb3 algorithms including TD3 and DDPG (in theory maybe td3 can work???)")
+        raise NotImplmenetedError(
+            "eval_log_prob not implemented for all sb3 algorithms including TD3 and DDPG (in theory maybe td3 can work???)"
+        )
 
     def generate_samples(self, max_samples, batch_size):
-        for i in range(0, max_samples+batch_size-1, batch_size):
+        for i in range(0, max_samples + batch_size - 1, batch_size):
             yield self.replay_buffer.sample(batch_size=batch_size)
 
     def cleanup_buffer(self):
         self.replay_buffer = self._old_buffer
 
     def setup_buffer(self, num_samples):
-        assert self.n_envs == 1, "I don't think multiple envs works for offline policies, but you can check and make suitable updates"
+        assert (
+            self.n_envs == 1
+        ), "I don't think multiple envs works for offline policies, but you can check and make suitable updates"
         self._old_buffer = self.replay_buffer
         callback = DoNothingCallback(self)
         self.replay_buffer = ReplayBuffer(
@@ -135,7 +145,9 @@ class ExtA2C(A2C, HeshCalcOnlineMixin):
             actions = actions.long().flatten()
 
         # TODO: avoid second computation of everything because of the gradient
-        values, log_prob, entropy = self.policy.evaluate_actions(rollout_data.observations, actions)
+        values, log_prob, entropy = self.policy.evaluate_actions(
+            rollout_data.observations, actions
+        )
         values = values.flatten()
 
         # Normalize advantage (not present in the original implementation)
@@ -156,7 +168,9 @@ class ExtA2C(A2C, HeshCalcOnlineMixin):
         else:
             entropy_loss = -th.mean(entropy)
 
-        loss = policy_loss + self.ent_coef * entropy_loss + 0*self.vf_coef * value_loss
+        loss = (
+            policy_loss + self.ent_coef * entropy_loss + 0 * self.vf_coef * value_loss
+        )
         params = self.parameters()
         grad_f = torch.autograd.grad(loss, inputs=params, create_graph=True)
         # Optimization step
@@ -188,7 +202,9 @@ class ExtPPO(PPO, HeshCalcOnlineMixin):
         if self.use_sde:
             self.policy.reset_noise(self.batch_size)
 
-        values, log_prob, entropy = self.policy.evaluate_actions(rollout_data.observations, actions)
+        values, log_prob, entropy = self.policy.evaluate_actions(
+            rollout_data.observations, actions
+        )
         values = values.flatten()
         # Normalize advantage
         advantages = rollout_data.advantages
@@ -224,7 +240,9 @@ class ExtPPO(PPO, HeshCalcOnlineMixin):
         else:
             entropy_loss = -th.mean(entropy)
 
-        loss = policy_loss + self.ent_coef * entropy_loss + 0*self.vf_coef * value_loss
+        loss = (
+            policy_loss + self.ent_coef * entropy_loss + 0 * self.vf_coef * value_loss
+        )
         params = self.parameters()
         grad_f = torch.autograd.grad(loss, inputs=params, create_graph=True)
         # Optimization step
@@ -238,7 +256,9 @@ class ExtPPO(PPO, HeshCalcOnlineMixin):
 class ExtSAC(SAC, HeshCalcOfflineMixin):
     def parameters(self):
         # print(self.policy.critic.state_dict().keys())
-        return list(self.policy.actor.parameters()) + list(self.policy.critic.parameters())
+        return list(self.policy.actor.parameters()) + list(
+            self.policy.critic.parameters()
+        )
 
     def eval_log_prob(self, obs, act):
         mean_actions, log_std, kwargs = self.policy.actor.get_action_dist_params(obs)
@@ -261,36 +281,48 @@ class ExtSAC(SAC, HeshCalcOfflineMixin):
             # so we don't change it with other losses
             # see https://github.com/rail-berkeley/softlearning/issues/60
             ent_coef = th.exp(self.log_ent_coef.detach())
-            ent_coef_loss = -(self.log_ent_coef * (log_prob + self.target_entropy).detach()).mean()
+            ent_coef_loss = -(
+                self.log_ent_coef * (log_prob + self.target_entropy).detach()
+            ).mean()
         else:
             ent_coef = self.ent_coef_tensor
 
         with th.no_grad():
             # Select action according to policy
-            next_actions, next_log_prob = self.actor.action_log_prob(replay_data.next_observations)
+            next_actions, next_log_prob = self.actor.action_log_prob(
+                replay_data.next_observations
+            )
             # Compute the target Q value: min over all critics targets
-            targets = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
+            targets = th.cat(
+                self.critic_target(replay_data.next_observations, next_actions), dim=1
+            )
             target_q, _ = th.min(targets, dim=1, keepdim=True)
             # add entropy term
             target_q = target_q - ent_coef * next_log_prob.reshape(-1, 1)
             # td error + entropy term
-            q_backup = replay_data.rewards + (1 - replay_data.dones) * self.gamma * target_q
+            q_backup = (
+                replay_data.rewards + (1 - replay_data.dones) * self.gamma * target_q
+            )
 
         # Get current Q estimates for each critic network
         # using action from the replay buffer
         current_q_estimates = self.critic(replay_data.observations, replay_data.actions)
 
         # Compute critic loss
-        critic_loss = 0.5 * sum([F.mse_loss(current_q, q_backup) for current_q in current_q_estimates])
+        critic_loss = 0.5 * sum(
+            [F.mse_loss(current_q, q_backup) for current_q in current_q_estimates]
+        )
 
         # Compute actor loss
         # Alternative: actor_loss = th.mean(log_prob - qf1_pi)
         # Mean over all critic networks
-        q_values_pi = th.cat(self.critic.forward(replay_data.observations, actions_pi), dim=1)
+        q_values_pi = th.cat(
+            self.critic.forward(replay_data.observations, actions_pi), dim=1
+        )
         min_qf_pi, _ = th.min(q_values_pi, dim=1, keepdim=True)
         actor_loss = (ent_coef * log_prob - min_qf_pi).mean()
 
-        loss = actor_loss + 0*critic_loss
+        loss = actor_loss + 0 * critic_loss
 
         params = self.parameters()
         grad_f = torch.autograd.grad(loss, inputs=params, create_graph=True)

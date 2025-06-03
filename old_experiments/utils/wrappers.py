@@ -1,5 +1,5 @@
-import gym
-from gym.wrappers import TimeLimit
+import gymnasium as gym
+from gymnasium.wrappers import TimeLimit
 import numpy as np
 
 
@@ -8,13 +8,14 @@ class DoneOnSuccessWrapper(gym.Wrapper):
     Reset on success and offsets the reward.
     Useful for GoalEnv.
     """
+
     def __init__(self, env, reward_offset=1.0):
         super(DoneOnSuccessWrapper, self).__init__(env)
         self.reward_offset = reward_offset
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
-        done = done or info.get('is_success', False)
+        done = done or info.get("is_success", False)
         reward += self.reward_offset
         return obs, reward, done, info
 
@@ -35,11 +36,12 @@ class TimeFeatureWrapper(gym.Wrapper):
         equal to zero. This allow to check that the agent did not overfit this feature,
         learning a deterministic pre-defined sequence of actions.
     """
+
     def __init__(self, env, max_steps=1000, test_mode=False):
         assert isinstance(env.observation_space, gym.spaces.Box)
         # Add a time feature to the observation
         low, high = env.observation_space.low, env.observation_space.high
-        low, high= np.concatenate((low, [0])), np.concatenate((high, [1.]))
+        low, high = np.concatenate((low, [0])), np.concatenate((high, [1.0]))
         env.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
 
         super(TimeFeatureWrapper, self).__init__(env)

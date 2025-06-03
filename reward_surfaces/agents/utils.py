@@ -2,7 +2,7 @@ import numpy as np
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from collections import OrderedDict
 import yaml
-import gym
+import gymnasium as gym
 from pprint import pprint
 from stable_baselines3.common.utils import constant_fn
 from stable_baselines3.common.callbacks import BaseCallback
@@ -32,7 +32,7 @@ def clip_norm_(values, max_norm):
     mag = 0
     length = 0
     for g in values:
-        mag += (g*g).sum()
+        mag += (g * g).sum()
         length += np.prod(g.shape)
     norm = mag / np.sqrt(length)
     if norm > max_norm:
@@ -57,7 +57,7 @@ class HyperparameterManager:
         self._hyperparams = {}
         self.verbose = verbose
         self.normalize = False
-        self.normalize_kwargs={}
+        self.normalize_kwargs = {}
 
     def get_hyperparams(self):
         hyperparams, saved_hyperparams = self.read_hyperparameters()
@@ -106,16 +106,22 @@ class HyperparameterManager:
             elif self._is_atari:
                 hyperparams = hyperparams_dict["atari"]
             else:
-                raise ValueError(f"Hyperparameters not found for {self.algo}-{self.env_id}")
+                raise ValueError(
+                    f"Hyperparameters not found for {self.algo}-{self.env_id}"
+                )
 
         if self.custom_hyperparams is not None:
             # Overwrite hyperparams if needed
             hyperparams.update(self.custom_hyperparams)
         # Sort hyperparams that will be saved
-        saved_hyperparams = OrderedDict([(key, hyperparams[key]) for key in sorted(hyperparams.keys())])
+        saved_hyperparams = OrderedDict(
+            [(key, hyperparams[key]) for key in sorted(hyperparams.keys())]
+        )
 
         if self.verbose > 0:
-            print("Default hyperparameters for environment (ones being tuned will be overridden):")
+            print(
+                "Default hyperparameters for environment (ones being tuned will be overridden):"
+            )
             pprint(saved_hyperparams)
 
         return hyperparams, saved_hyperparams
@@ -175,7 +181,7 @@ class HyperparameterManager:
 
         # Pre-process policy/buffer keyword arguments
         # Convert to python object if needed
-        #for kwargs_key in {"policy_kwargs", "replay_buffer_class", "replay_buffer_kwargs"}:
+        # for kwargs_key in {"policy_kwargs", "replay_buffer_class", "replay_buffer_kwargs"}:
         #    if kwargs_key in hyperparams.keys() and isinstance(hyperparams[kwargs_key], str):
         #        hyperparams[kwargs_key] = eval(hyperparams[kwargs_key])
 
