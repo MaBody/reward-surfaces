@@ -18,9 +18,9 @@ pathlib = "*"
 gymnasium = "*"
 numpy = "*"
 pandas = "*"
-ipykernel = "*"
 scipy = "*"
 nbformat = "*"
+ipykernel = "*"
 
 [dev-packages]
 
