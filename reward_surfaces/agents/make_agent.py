@@ -5,6 +5,7 @@ from .SB3 import SB3OnPolicyTrainer, SB3OffPolicyTrainer, SB3HerPolicyTrainer
 from .rainbow.rainbow_trainer import RainbowTrainer
 from .SB3.sb3_extended_algos import ExtA2C, ExtPPO, ExtSAC
 from .experiment_manager import ExperimentManager
+import gymnasium as gym
 
 SB3_ON_ALGOS = {
     "A2C": ExtA2C,
@@ -53,7 +54,7 @@ def make_agent(agent_name, env_name, save_dir, hyperparams, device="cuda", pretr
     elif "SB3_ON" == agent_name:
         algo_name = hyperparams.pop('ALGO')
         manager = ExperimentManager(algo_name.lower(), env_name, save_dir, hyperparams=hyperparams,
-                                    pretraining=pretraining, verbose=1, device=device)
+                                    pretraining=pretraining, verbose=0, device=device)
         model, _, steps = manager.setup_experiment()
         if pretraining:
             best_model = manager.get_best_model()
